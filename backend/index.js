@@ -560,6 +560,147 @@ app.get('/publicaciones/:id/reacciones', async (req, res) => {
 });
 
 
+/**
+ * Seguir a un usuario
+ */
+app.post('/usuarios/:id/seguir', authMiddleware, async (req, res) => {
+  const { id: usuarioSeguidoId } = req.params;
+  const { firebase_uid } = req.user;
+
+  try {
+    // Usuario autenticado
+    const userResult = await pool.query(
+      'SELECT id FROM usuario WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const seguidorId = userResult.rows[0].id;
+
+    // Insertar seguimiento
+    await pool.query(
+      `
+      INSERT INTO seguimiento (seguidor_id, usuario_seguido_id)
+      VALUES ($1, $2)
+      ON CONFLICT DO NOTHING
+      `,
+      [seguidorId, usuarioSeguidoId]
+    );
+
+    res.json({ mensaje: 'Ahora sigues a este usuario' });
+  } catch (error) {
+    console.error('❌ Error siguiendo usuario', error);
+    res.status(500).json({ error: 'Error al seguir usuario' });
+  }
+});
+
+
+/**
+ * Seguir un proyecto
+ */
+app.post('/proyectos/:id/seguir', authMiddleware, async (req, res) => {
+  const { id: proyectoId } = req.params;
+  const { firebase_uid } = req.user;
+
+  try {
+    const userResult = await pool.query(
+      'SELECT id FROM usuario WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const seguidorId = userResult.rows[0].id;
+
+    await pool.query(
+      `
+      INSERT INTO seguimiento (seguidor_id, proyecto_seguido_id)
+      VALUES ($1, $2)
+      ON CONFLICT DO NOTHING
+      `,
+      [seguidorId, proyectoId]
+    );
+
+    res.json({ mensaje: 'Ahora sigues este proyecto' });
+  } catch (error) {
+    console.error('❌ Error siguiendo proyecto', error);
+    res.status(500).json({ error: 'Error al seguir proyecto' });
+  }
+});
+
+
+/**
+ * Dejar de seguir a un usuario
+ */
+app.delete('/usuarios/:id/seguir', authMiddleware, async (req, res) => {
+  const { id: usuarioSeguidoId } = req.params;
+  const { firebase_uid } = req.user;
+
+  try {
+    const userResult = await pool.query(
+      'SELECT id FROM usuario WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+
+    const seguidorId = userResult.rows[0].id;
+
+    await pool.query(
+      `
+      DELETE FROM seguimiento
+      WHERE seguidor_id = $1 AND usuario_seguido_id = $2
+      `,
+      [seguidorId, usuarioSeguidoId]
+    );
+
+    res.json({ mensaje: 'Has dejado de seguir al usuario' });
+  } catch (error) {
+    console.error('❌ Error al dejar de seguir usuario', error);
+    res.status(500).json({ error: 'Error al dejar de seguir' });
+  }
+});
+
+
+/**
+ * Obtener usuarios y proyectos que sigo
+ */
+app.get('/seguimientos', authMiddleware, async (req, res) => {
+  const { firebase_uid } = req.user;
+
+  try {
+    const userResult = await pool.query(
+      'SELECT id FROM usuario WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+
+    const seguidorId = userResult.rows[0].id;
+
+    const result = await pool.query(
+      `
+      SELECT
+        s.id,
+        u.nombre AS usuario_seguido,
+        p.titulo AS proyecto_seguido
+      FROM seguimiento s
+      LEFT JOIN usuario u ON s.usuario_seguido_id = u.id
+      LEFT JOIN proyecto p ON s.proyecto_seguido_id = p.id
+      WHERE s.seguidor_id = $1
+      `,
+      [seguidorId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('❌ Error obteniendo seguimientos', error);
+    res.status(500).json({ error: 'Error al obtener seguimientos' });
+  }
+});
+
+
 
 // Levantamos el servidor
 app.listen(PORT, () => {
