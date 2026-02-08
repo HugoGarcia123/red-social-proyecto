@@ -207,6 +207,90 @@ app.put('/proyectos/:id', authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * Asignar tecnologías a un proyecto
+ * Solo el creador puede hacerlo
+ */
+app.post('/proyectos/:id/tecnologias', authMiddleware, async (req, res) => {
+  const { id: proyectoId } = req.params;
+  const { tecnologias } = req.body; // array de tecnologia_id
+  const { firebase_uid } = req.user;
+
+  if (!Array.isArray(tecnologias) || tecnologias.length === 0) {
+    return res.status(400).json({ error: 'Debes enviar un arreglo de tecnologías' });
+  }
+
+  try {
+    // 1. Obtener usuario interno
+    const userResult = await pool.query(
+      'SELECT id FROM usuario WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const usuarioId = userResult.rows[0].id;
+
+    // 2. Verificar proyecto y permisos
+    const proyectoResult = await pool.query(
+      'SELECT creador_id FROM proyecto WHERE id = $1',
+      [proyectoId]
+    );
+
+    if (proyectoResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Proyecto no encontrado' });
+    }
+
+    if (proyectoResult.rows[0].creador_id !== usuarioId) {
+      return res.status(403).json({ error: 'No tienes permiso para modificar este proyecto' });
+    }
+
+    // 3. Insertar relaciones (evitando duplicados)
+    for (const tecnologiaId of tecnologias) {
+      await pool.query(
+        `
+        INSERT INTO proyecto_tecnologia (proyecto_id, tecnologia_id)
+        VALUES ($1, $2)
+        ON CONFLICT DO NOTHING
+        `,
+        [proyectoId, tecnologiaId]
+      );
+    }
+
+    res.json({ mensaje: 'Tecnologías asignadas correctamente' });
+  } catch (error) {
+    console.error('❌ Error asignando tecnologías', error);
+    res.status(500).json({ error: 'Error al asignar tecnologías' });
+  }
+});
+
+/**
+ * Obtener tecnologías asociadas a un proyecto
+ * Endpoint público
+ */
+app.get('/proyectos/:id/tecnologias', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT t.id, t.nombre, t.slug
+      FROM proyecto_tecnologia pt
+      JOIN tecnologia t ON pt.tecnologia_id = t.id
+      WHERE pt.proyecto_id = $1
+      `,
+      [id]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('❌ Error obteniendo tecnologías', error);
+    res.status(500).json({ error: 'Error al obtener tecnologías' });
+  }
+});
+
 
 
 // Levantamos el servidor
