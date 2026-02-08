@@ -701,6 +701,142 @@ app.get('/seguimientos', authMiddleware, async (req, res) => {
 });
 
 
+/**
+ * Crear una colaboración en un proyecto
+ * Solo el creador del proyecto
+ */
+app.post('/proyectos/:id/colaboraciones', authMiddleware, async (req, res) => {
+  const { id: proyectoId } = req.params;
+  const { rol_buscado, descripcion } = req.body;
+  const { firebase_uid } = req.user;
+
+  try {
+    // Usuario interno
+    const userResult = await pool.query(
+      'SELECT id FROM usuario WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    const usuarioId = userResult.rows[0].id;
+
+    // Verificar creador
+    const proyectoResult = await pool.query(
+      'SELECT creador_id FROM proyecto WHERE id = $1',
+      [proyectoId]
+    );
+
+    if (proyectoResult.rows[0].creador_id !== usuarioId) {
+      return res.status(403).json({ error: 'No puedes crear colaboraciones en este proyecto' });
+    }
+
+    const result = await pool.query(
+      `
+      INSERT INTO colaboracion (proyecto_id, rol_buscado, descripcion)
+      VALUES ($1, $2, $3)
+      RETURNING *
+      `,
+      [proyectoId, rol_buscado, descripcion]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Error creando colaboración', error);
+    res.status(500).json({ error: 'Error al crear colaboración' });
+  }
+});
+
+
+/**
+ * Postularse a una colaboración
+ */
+app.post('/colaboraciones/:id/postular', authMiddleware, async (req, res) => {
+  const { id: colaboracionId } = req.params;
+  const { mensaje_opcional } = req.body;
+  const { firebase_uid } = req.user;
+
+  try {
+    const userResult = await pool.query(
+      'SELECT id FROM usuario WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    const usuarioId = userResult.rows[0].id;
+
+    const result = await pool.query(
+      `
+      INSERT INTO postulacion (colaboracion_id, usuario_id, mensaje_opcional)
+      VALUES ($1, $2, $3)
+      ON CONFLICT DO NOTHING
+      RETURNING *
+      `,
+      [colaboracionId, usuarioId, mensaje_opcional]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'Ya estás postulado a esta colaboración' });
+    }
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Error postulándose', error);
+    res.status(500).json({ error: 'Error al postularse' });
+  }
+});
+
+
+/**
+ * Aceptar o rechazar una postulación
+ * Solo el creador del proyecto
+ */
+app.put('/postulaciones/:id', authMiddleware, async (req, res) => {
+  const { id: postulacionId } = req.params;
+  const { estado } = req.body; // aceptada | rechazada
+  const { firebase_uid } = req.user;
+
+  if (!['aceptada', 'rechazada'].includes(estado)) {
+    return res.status(400).json({ error: 'Estado inválido' });
+  }
+
+  try {
+    // Usuario interno
+    const userResult = await pool.query(
+      'SELECT id FROM usuario WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    const usuarioId = userResult.rows[0].id;
+
+    // Verificar permisos (join en cascada)
+    const permisoResult = await pool.query(
+      `
+      SELECT p.creador_id
+      FROM postulacion po
+      JOIN colaboracion c ON po.colaboracion_id = c.id
+      JOIN proyecto p ON c.proyecto_id = p.id
+      WHERE po.id = $1
+      `,
+      [postulacionId]
+    );
+
+    if (permisoResult.rows[0].creador_id !== usuarioId) {
+      return res.status(403).json({ error: 'No tienes permiso para decidir esta postulación' });
+    }
+
+    const result = await pool.query(
+      `
+      UPDATE postulacion
+      SET estado = $1
+      WHERE id = $2
+      RETURNING *
+      `,
+      [estado, postulacionId]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Error actualizando postulación', error);
+    res.status(500).json({ error: 'Error al actualizar postulación' });
+  }
+});
+
+
 
 // Levantamos el servidor
 app.listen(PORT, () => {
