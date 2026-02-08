@@ -1,16 +1,13 @@
 // Importamos Express para crear el servidor
 const express = require('express');
 
-// Permite servir archivos estáticos (imágenes)
-app.use('/uploads', express.static('uploads'));
-
-const uploadProfile = require('./src/middlewares/uploadProfile');
-
 // Importamos la conexión a la base de datos
 const pool = require('./src/db');
 
 // Middleware de autenticación Firebase
 const authMiddleware = require('./src/middlewares/auth');
+
+const uploadProfile = require('./src/middlewares/uploadProfile');
 
 // Creamos la app Express
 const app = express();
@@ -18,6 +15,9 @@ const PORT = 3000;
 
 // Permite recibir JSON en requests
 app.use(express.json());
+
+// Permite servir archivos estáticos (imágenes)
+app.use('/uploads', express.static('uploads'));
 
 /**
  * Endpoint de salud del sistema
