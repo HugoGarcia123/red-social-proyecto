@@ -453,6 +453,113 @@ app.get('/publicaciones/:id/comentarios', async (req, res) => {
 });
 
 
+/**
+ * Crear o actualizar reacción en una publicación
+ */
+app.post('/publicaciones/:id/reacciones', authMiddleware, async (req, res) => {
+  const { id: publicacionId } = req.params;
+  const { tipo } = req.body;
+  const { firebase_uid } = req.user;
+
+  if (![0, 1, 2].includes(tipo)) {
+    return res.status(400).json({ error: 'Tipo de reacción inválido' });
+  }
+
+  try {
+    // 1. Obtener usuario interno
+    const userResult = await pool.query(
+      'SELECT id FROM usuario WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const usuarioId = userResult.rows[0].id;
+
+    // 2. Insertar o actualizar reacción
+    const result = await pool.query(
+      `
+      INSERT INTO reaccion (publicacion_id, usuario_id, tipo)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (publicacion_id, usuario_id)
+      DO UPDATE SET tipo = EXCLUDED.tipo
+      RETURNING *
+      `,
+      [publicacionId, usuarioId, tipo]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Error reaccionando', error);
+    res.status(500).json({ error: 'Error al reaccionar' });
+  }
+});
+
+
+/**
+ * Eliminar reacción de una publicación
+ */
+app.delete('/publicaciones/:id/reacciones', authMiddleware, async (req, res) => {
+  const { id: publicacionId } = req.params;
+  const { firebase_uid } = req.user;
+
+  try {
+    // 1. Obtener usuario interno
+    const userResult = await pool.query(
+      'SELECT id FROM usuario WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const usuarioId = userResult.rows[0].id;
+
+    // 2. Eliminar reacción
+    await pool.query(
+      `
+      DELETE FROM reaccion
+      WHERE publicacion_id = $1 AND usuario_id = $2
+      `,
+      [publicacionId, usuarioId]
+    );
+
+    res.json({ mensaje: 'Reacción eliminada' });
+  } catch (error) {
+    console.error('❌ Error eliminando reacción', error);
+    res.status(500).json({ error: 'Error al eliminar reacción' });
+  }
+});
+
+
+/**
+ * Obtener conteo de reacciones por tipo
+ */
+app.get('/publicaciones/:id/reacciones', async (req, res) => {
+  const { id: publicacionId } = req.params;
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT tipo, COUNT(*) AS total
+      FROM reaccion
+      WHERE publicacion_id = $1
+      GROUP BY tipo
+      `,
+      [publicacionId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('❌ Error obteniendo reacciones', error);
+    res.status(500).json({ error: 'Error al obtener reacciones' });
+  }
+});
+
+
 
 // Levantamos el servidor
 app.listen(PORT, () => {
