@@ -1,3 +1,8 @@
+// Permite servir archivos estáticos (imágenes)
+app.use('/uploads', express.static('uploads'));
+
+const uploadProfile = require('./src/middlewares/uploadProfile');
+
 // Importamos Express para crear el servidor
 const express = require('express');
 
@@ -835,6 +840,34 @@ app.put('/postulaciones/:id', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Error al actualizar postulación' });
   }
 });
+
+
+/**
+ * Subir o actualizar foto de perfil
+ */
+app.post(
+  '/usuarios/me/foto',
+  authMiddleware,
+  uploadProfile.single('foto'),
+  async (req, res) => {
+    try {
+      const userId = req.user.id;
+
+      const fotoUrl = `/uploads/users/${userId}/profile.jpg`;
+
+      // Guardar URL en la DB
+      await pool.query(
+        'UPDATE usuario SET foto_perfil_url = $1 WHERE id = $2',
+        [fotoUrl, userId]
+      );
+
+      res.json({ foto_perfil_url: fotoUrl });
+    } catch (error) {
+      console.error('❌ Error subiendo foto', error);
+      res.status(500).json({ error: 'Error al subir foto' });
+    }
+  }
+);
 
 
 
