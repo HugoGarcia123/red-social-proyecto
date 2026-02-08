@@ -367,6 +367,92 @@ app.get('/publicaciones', async (req, res) => {
 });
 
 
+/**
+ * Crear un comentario en una publicación
+ */
+app.post('/publicaciones/:id/comentarios', authMiddleware, async (req, res) => {
+  const { id: publicacionId } = req.params;
+  const { contenido_texto } = req.body;
+  const { firebase_uid } = req.user;
+
+  if (!contenido_texto || contenido_texto.trim() === '') {
+    return res.status(400).json({ error: 'El comentario no puede estar vacío' });
+  }
+
+  try {
+    // 1. Obtener usuario interno
+    const userResult = await pool.query(
+      'SELECT id FROM usuario WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const autorId = userResult.rows[0].id;
+
+    // 2. Verificar que la publicación exista
+    const pubResult = await pool.query(
+      'SELECT id FROM publicacion WHERE id = $1',
+      [publicacionId]
+    );
+
+    if (pubResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Publicación no encontrada' });
+    }
+
+    // 3. Crear comentario
+    const result = await pool.query(
+      `
+      INSERT INTO comentario (publicacion_id, autor_id, contenido_texto)
+      VALUES ($1, $2, $3)
+      RETURNING *
+      `,
+      [publicacionId, autorId, contenido_texto]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Error creando comentario', error);
+    res.status(500).json({ error: 'Error al crear comentario' });
+  }
+});
+
+
+/**
+ * Obtener comentarios de una publicación
+ * Endpoint público
+ */
+app.get('/publicaciones/:id/comentarios', async (req, res) => {
+  const { id: publicacionId } = req.params;
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        c.id,
+        c.contenido_texto,
+        c.fecha_creacion,
+
+        u.id AS autor_id,
+        u.nombre AS autor_nombre
+      FROM comentario c
+      JOIN usuario u ON c.autor_id = u.id
+      WHERE c.publicacion_id = $1
+      ORDER BY c.fecha_creacion ASC
+      `,
+      [publicacionId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('❌ Error obteniendo comentarios', error);
+    res.status(500).json({ error: 'Error al obtener comentarios' });
+  }
+});
+
+
 
 // Levantamos el servidor
 app.listen(PORT, () => {
