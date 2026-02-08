@@ -110,6 +110,102 @@ app.get('/proyectos', async (req, res) => {
   }
 });
 
+/**
+ * Obtener un proyecto por ID
+ * Endpoint público
+ */
+app.get('/proyectos/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        p.id,
+        p.titulo,
+        p.descripcion,
+        p.estado,
+        p.busca_colaboradores,
+        p.fecha_creacion,
+        u.nombre AS creador_nombre,
+        u.email AS creador_email
+      FROM proyecto p
+      JOIN usuario u ON p.creador_id = u.id
+      WHERE p.id = $1
+      `,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Proyecto no encontrado' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Error obteniendo proyecto', error);
+    res.status(500).json({ error: 'Error al obtener proyecto' });
+  }
+});
+
+/**
+ * Editar un proyecto
+ * Solo el creador puede hacerlo
+ */
+app.put('/proyectos/:id', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { titulo, descripcion, estado, busca_colaboradores } = req.body;
+  const { firebase_uid } = req.user;
+
+  try {
+    // 1. Obtener usuario interno
+    const userResult = await pool.query(
+      'SELECT id FROM usuario WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const usuarioId = userResult.rows[0].id;
+
+    // 2. Obtener proyecto
+    const proyectoResult = await pool.query(
+      'SELECT creador_id FROM proyecto WHERE id = $1',
+      [id]
+    );
+
+    if (proyectoResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Proyecto no encontrado' });
+    }
+
+    // 3. Validar permisos
+    if (proyectoResult.rows[0].creador_id !== usuarioId) {
+      return res.status(403).json({ error: 'No tienes permiso para editar este proyecto' });
+    }
+
+    // 4. Actualizar proyecto
+    const updatedProject = await pool.query(
+      `
+      UPDATE proyecto
+      SET
+        titulo = COALESCE($1, titulo),
+        descripcion = COALESCE($2, descripcion),
+        estado = COALESCE($3, estado),
+        busca_colaboradores = COALESCE($4, busca_colaboradores),
+        fecha_actualizacion = CURRENT_TIMESTAMP
+      WHERE id = $5
+      RETURNING *
+      `,
+      [titulo, descripcion, estado, busca_colaboradores, id]
+    );
+
+    res.json(updatedProject.rows[0]);
+  } catch (error) {
+    console.error('❌ Error actualizando proyecto', error);
+    res.status(500).json({ error: 'Error al actualizar proyecto' });
+  }
+});
 
 
 
