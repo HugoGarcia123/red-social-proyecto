@@ -292,6 +292,81 @@ app.get('/proyectos/:id/tecnologias', async (req, res) => {
 });
 
 
+/**
+ * Crear una publicación
+ * Puede o no estar ligada a un proyecto
+ */
+app.post('/publicaciones', authMiddleware, async (req, res) => {
+  const { contenido_texto, proyecto_id } = req.body;
+  const { firebase_uid } = req.user;
+
+  if (!contenido_texto || contenido_texto.trim() === '') {
+    return res.status(400).json({ error: 'El contenido no puede estar vacío' });
+  }
+
+  try {
+    // 1. Obtener usuario interno
+    const userResult = await pool.query(
+      'SELECT id FROM usuario WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const autorId = userResult.rows[0].id;
+
+    // 2. Crear publicación
+    const result = await pool.query(
+      `
+      INSERT INTO publicacion (autor_id, proyecto_id, contenido_texto)
+      VALUES ($1, $2, $3)
+      RETURNING *
+      `,
+      [autorId, proyecto_id ?? null, contenido_texto]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Error creando publicación', error);
+    res.status(500).json({ error: 'Error al crear publicación' });
+  }
+});
+
+
+/**
+ * Feed global de publicaciones
+ */
+app.get('/publicaciones', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        p.id,
+        p.contenido_texto,
+        p.fecha_creacion,
+
+        u.id AS autor_id,
+        u.nombre AS autor_nombre,
+
+        pr.id AS proyecto_id,
+        pr.titulo AS proyecto_titulo
+      FROM publicacion p
+      JOIN usuario u ON p.autor_id = u.id
+      LEFT JOIN proyecto pr ON p.proyecto_id = pr.id
+      ORDER BY p.fecha_creacion DESC
+      `
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('❌ Error obteniendo publicaciones', error);
+    res.status(500).json({ error: 'Error al obtener publicaciones' });
+  }
+});
+
+
 
 // Levantamos el servidor
 app.listen(PORT, () => {
