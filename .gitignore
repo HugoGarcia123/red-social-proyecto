@@ -1,0 +1,22 @@
+# Node
+node_modules/
+
+# Firebase / secretos
+firebase-service-account.json
+red-social-proyectos-firebase-adminsdk-fbsvc-6a7934cb10.json
+.env
+
+# Docker
+postgres_data/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+package-lock.json
+package.json

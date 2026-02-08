@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  backend:
+    # Construye la imagen usando el Dockerfile dentro de /backend
+    build: ./backend
+
+    # Nombre del contenedor (solo para identificarlo fácil)
+    container_name: redsocial_backend
+
+    # Mapea el puerto 3000 del contenedor al 3000 de tu máquina
+    ports:
+      - "3000:3000"
+
+    # Monta el código local dentro del contenedor
+    # Esto permite editar código sin reconstruir la imagen
+    volumes:
+      - ./backend:/app
+      - ./backend/firebase-service-account.json:/app/firebase-service-account.json
+
+    # Variables de entorno para la base de datos
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=redsocial
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+
+    # El backend no se levanta hasta que la DB esté lista
+    depends_on:
+      - db
+
+    restart: unless-stopped
+
+  db:
+    # Imagen oficial de PostgreSQL
+    image: postgres:15
+
+    container_name: redsocial_db
+
+    # Configuración inicial de la DB
+    environment:
+      POSTGRES_DB: redsocial
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+    # Persistencia de datos (no se borran al apagar Docker)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    # Puerto expuesto (útil para debug, no obligatorio)
+    ports:
+      - "5432:5432"
+
+    restart: unless-stopped
+
+# Volumen persistente de PostgreSQL
+volumes:
+  postgres_data:
