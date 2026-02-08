@@ -1,10 +1,10 @@
+// Importamos Express para crear el servidor
+const express = require('express');
+
 // Permite servir archivos estáticos (imágenes)
 app.use('/uploads', express.static('uploads'));
 
 const uploadProfile = require('./src/middlewares/uploadProfile');
-
-// Importamos Express para crear el servidor
-const express = require('express');
 
 // Importamos la conexión a la base de datos
 const pool = require('./src/db');
