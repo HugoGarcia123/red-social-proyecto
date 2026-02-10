@@ -1,4 +1,4 @@
-CREATE TABLE colaboracion (
+CREATE TABLE IF NOT EXISTS colaboracion (
   id SERIAL PRIMARY KEY,
 
   proyecto_id INTEGER NOT NULL,

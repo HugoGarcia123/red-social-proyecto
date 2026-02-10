@@ -1,4 +1,4 @@
-CREATE TABLE proyecto (
+CREATE TABLE IF NOT EXISTS proyecto (
   id SERIAL PRIMARY KEY,
 
   -- Usuario creador del proyecto

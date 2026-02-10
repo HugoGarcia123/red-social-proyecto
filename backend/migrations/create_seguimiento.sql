@@ -1,4 +1,4 @@
-CREATE TABLE seguimiento (
+CREATE TABLE IF NOT EXISTS seguimiento (
   id SERIAL PRIMARY KEY,
 
   seguidor_id INTEGER NOT NULL,

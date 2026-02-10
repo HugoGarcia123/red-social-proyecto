@@ -1,4 +1,4 @@
-CREATE TABLE postulacion (
+CREATE TABLE IF NOT EXISTS postulacion (
   id SERIAL PRIMARY KEY,
 
   colaboracion_id INTEGER NOT NULL,

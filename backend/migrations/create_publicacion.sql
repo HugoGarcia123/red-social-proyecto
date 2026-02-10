@@ -1,4 +1,4 @@
-CREATE TABLE publicacion (
+CREATE TABLE IF NOT EXISTS publicacion (
   id SERIAL PRIMARY KEY,
 
   -- Autor de la publicación

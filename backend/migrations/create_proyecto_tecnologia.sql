@@ -1,4 +1,4 @@
-CREATE TABLE proyecto_tecnologia (
+CREATE TABLE IF NOT EXISTS proyecto_tecnologia (
   proyecto_id INTEGER NOT NULL,
   tecnologia_id INTEGER NOT NULL,
 

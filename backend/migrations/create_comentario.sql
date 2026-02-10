@@ -1,4 +1,4 @@
-CREATE TABLE comentario (
+CREATE TABLE IF NOT EXISTS comentario (
   id SERIAL PRIMARY KEY,
 
   -- Publicación a la que pertenece

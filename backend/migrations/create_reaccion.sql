@@ -1,4 +1,4 @@
-CREATE TABLE reaccion (
+CREATE TABLE IF NOT EXISTS reaccion (
   id SERIAL PRIMARY KEY,
 
   publicacion_id INTEGER NOT NULL,

@@ -1,4 +1,4 @@
-CREATE TABLE usuario (
+CREATE TABLE IF NOT EXISTS usuario (
   id SERIAL PRIMARY KEY,
 
   firebase_uid VARCHAR(128) UNIQUE NOT NULL,
