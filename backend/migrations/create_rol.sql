@@ -1,0 +1,5 @@
+CREATE TABLE rol (
+  id SMALLINT PRIMARY KEY,
+  nombre VARCHAR(50) UNIQUE NOT NULL,
+  descripcion TEXT
+);
