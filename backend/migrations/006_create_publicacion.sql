@@ -1,23 +1,11 @@
 CREATE TABLE IF NOT EXISTS publicacion (
   id SERIAL PRIMARY KEY,
-
-  -- Autor de la publicación
-  autor_id INTEGER NOT NULL,
-
-  -- Proyecto opcional
-  proyecto_id INTEGER,
-
-  contenido_texto TEXT NOT NULL,
-
-  fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  fecha_edicion TIMESTAMP,
-
-  CONSTRAINT fk_publicacion_autor
-    FOREIGN KEY (autor_id)
-    REFERENCES usuario(id),
-
-  CONSTRAINT fk_publicacion_proyecto
-    FOREIGN KEY (proyecto_id)
-    REFERENCES proyecto(id)
-    ON DELETE SET NULL
+  usuario_id INTEGER NOT NULL,
+  contenido TEXT NOT NULL,
+  imagen_url TEXT,
+  creado_en TIMESTAMP DEFAULT NOW(),
+  CONSTRAINT fk_publicacion_usuario
+    FOREIGN KEY (usuario_id)
+    REFERENCES usuario(id)
+    ON DELETE CASCADE
 );

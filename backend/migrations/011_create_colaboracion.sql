@@ -1,18 +1,17 @@
-CREATE TABLE IF NOT EXISTS colaboracion (
+CREATE TABLE IF NOT EXISTS postulacion (
   id SERIAL PRIMARY KEY,
-
   proyecto_id INTEGER NOT NULL,
-
-  rol_buscado VARCHAR(100) NOT NULL,
-  descripcion TEXT,
-
-  -- abierta | cerrada
-  estado VARCHAR(20) DEFAULT 'abierta',
-
-  fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-  CONSTRAINT fk_colaboracion_proyecto
+  usuario_id INTEGER NOT NULL,
+  mensaje TEXT,
+  estado VARCHAR(50) DEFAULT 'pendiente',
+  creado_en TIMESTAMP DEFAULT NOW(),
+  CONSTRAINT fk_postulacion_proyecto
     FOREIGN KEY (proyecto_id)
     REFERENCES proyecto(id)
-    ON DELETE CASCADE
+    ON DELETE CASCADE,
+  CONSTRAINT fk_postulacion_usuario
+    FOREIGN KEY (usuario_id)
+    REFERENCES usuario(id)
+    ON DELETE CASCADE,
+  UNIQUE (proyecto_id, usuario_id)
 );
