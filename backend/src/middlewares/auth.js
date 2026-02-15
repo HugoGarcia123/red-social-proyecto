@@ -50,8 +50,10 @@ async function authMiddleware(req, res, next) {
     next();
 
   } catch (error) {
-    return res.status(401).json({ error: 'Token inválido o expirado' });
-  }
+  console.error("AUTH ERROR REAL:", error);
+  return res.status(401).json({ error: error.message });
+}
+
 }
 
 
